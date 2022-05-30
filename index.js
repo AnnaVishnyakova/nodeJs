@@ -1,34 +1,42 @@
-const colors = require('colors')
+const EventEmitter = require('events'),
+	emitter = new EventEmitter()
+require('moment-precise-range-plugin')
+const moment = require('moment')
 
-let primeCount = 0
+const [userPastDate] = process.argv.slice(2)
+const format = 'YYYY-MM-DD HH'
 
-let [primeStart, primeEnd] = process.argv.slice(2)
+const getDateFromDateString = dateString => {
+	const [hour, day, month, year] = dateString.split('-')
+	return new Date(Date.UTC(year, month - 1, day, hour))
+}
 
-const colorsPallete = [colors.green, colors.yellow, colors.red]
+const dateInFuture = getDateFromDateString(userPastDate)
 
-if (!primeStart || !primeEnd) {
-	console.log(colors.red('Числа должны быть вида 0 100'))
-} else {
-	if (primeStart < 2) {
-		primeStart = 2
-	}
+const showRemainingTime = dateInFuture => {
+	const dateNow = new Date()
 
-	for (let i = primeStart; i <= primeEnd; i++) {
-		let isPrime = true
+	if (dateNow >= dateInFuture) {
+		emitter.emit('timerEnd')
+	} else {
+		const currentDateFormatted = moment(dateNow, format)
+		const futureDateFormatted = moment(dateInFuture, format)
+		const diff = moment.preciseDiff(currentDateFormatted, futureDateFormatted)
 
-		for (let j = 2; j < i; j++) {
-			if (i % j === 0) {
-				isPrime = false
-			}
-		}
-
-		if (isPrime) {
-			console.log(colorsPallete[primeCount % 3](i))
-			primeCount++
-		}
-	}
-
-	if (!primeCount) {
-		console.log(colors.red('Не найдено простых чисел в диапазоне'))
+		console.log(diff)
 	}
 }
+
+const timerId = setInterval(() => {
+	emitter.emit('timerTick', dateInFuture)
+}, 1000)
+
+const showTimerDone = timerId => {
+	clearInterval(timerId)
+	console.log('End')
+}
+
+emitter.on('timerTick', showRemainingTime)
+emitter.on('timerEnd', () => {
+	showTimerDone(timerId)
+})
